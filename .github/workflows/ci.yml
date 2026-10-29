@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Conn3x
+        env: &gh
+          GH_TOKEN: ${{ github.token }}
+        run: &install |
+          tag=$(gh release view -R conn3xorg/conn3x --json tagName -q .tagName)
+          file="conn3x_${tag#v}_linux_amd64.tar.gz"
+          cd "$RUNNER_TEMP"
+          curl -sSfLO "https://github.com/conn3xorg/conn3x/releases/download/$tag/$file"
+          curl -sSfLO "https://github.com/conn3xorg/conn3x/releases/download/$tag/checksums.txt"
+          grep " $file\$" checksums.txt | sha256sum -c -
+          mkdir -p bin && tar -xzf "$file" -C bin conn3x
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - run: conn3x version
+      - run: conn3x fmt -check -recursive
+      - name: Validate
+        run: conn3x init -backend=false && conn3x validate
+      - name: Validate the example
+        working-directory: examples/local
+        run: conn3x init -backend=false && conn3x validate
+
+  e2e:
+    needs: validate
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [rocky10, fedora45, ubuntu2404, debian13]
+    name: e2e (${{ matrix.distro }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The test host images live in the Conn3x repo.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: conn3xorg/conn3x
+          ref: main
+          path: conn3x
+          persist-credentials: false
+          sparse-checkout: test/images
+      - name: Install Conn3x
+        env: *gh
+        run: *install
+      - name: Start the ${{ matrix.distro }} host
+        working-directory: examples/local
+        env:
+          CONTAINERFILE: ${{ github.workspace }}/conn3x/test/images/${{ matrix.distro }}/Containerfile
+          # Podman in the host container needs a rootful, privileged container.
+          PODMAN: sudo podman
+        run: ./up.sh
+      - name: Apply, then plan again with no changes
+        working-directory: examples/local
+        run: |
+          conn3x init
+          conn3x apply -auto-approve
+          conn3x plan -detailed-exitcode
+      # The client API answers, the example's admin logs in and is an admin,
+      # a wrong password is refused, and Synapse serves the federation
+      # .well-known. The secrets stay out of homeserver.yaml.
+      - name: Log in as the admin
+        run: &check |
+          sudo podman exec -i circuit-matrix sh -eu <<'EOF'
+          u=http://127.0.0.1:8008
+          for _ in $(seq 120); do curl -sf -o /dev/null $u/health && break; sleep 1; done
+          curl -sSf $u/_matrix/client/versions | grep -q '"versions"'
+          login() { curl -s -X POST $u/_matrix/client/v3/login -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"admin\"},\"password\":\"$1\"}"; }
+          token=$(login correct-horse-battery | sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p')
+          [ -n "$token" ]
+          curl -sSf -H "Authorization: Bearer $token" "$u/_synapse/admin/v2/users/@admin:matrix.test" | grep -q '"admin":true'
+          login wrong-password-1 | grep -q M_FORBIDDEN
+          curl -sSf $u/.well-known/matrix/server | grep -q '"m.server":"matrix.test:443"'
+          [ "$(stat -c '%U:%G %a' /etc/matrix-synapse/macaroon_secret_key)" = "root:matrix-synapse 640" ]
+          [ "$(stat -c '%U %a' /var/lib/matrix-synapse/signing.key)" = "matrix-synapse 640" ]
+          if grep -qE '^"?(registration_shared_secret|macaroon_secret_key|form_secret)"?:' /etc/matrix-synapse/homeserver.yaml; then exit 1; fi
+          EOF
+      # The admin's still there after a restart, so the database lives on
+      # the host, not in the container.
+      - name: Restart Synapse and log in again
+        run: sudo podman exec circuit-matrix systemctl restart matrix-synapse
+      - name: Log in after the restart
+        run: *check
+      - name: Plan again after the restart
+        working-directory: examples/local
+        run: conn3x plan -detailed-exitcode
+      - name: Clean up
+        if: always()
+        working-directory: examples/local
+        env:
+          PODMAN: sudo podman
+        run: ./down.sh
