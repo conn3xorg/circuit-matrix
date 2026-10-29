@@ -200,7 +200,7 @@ On its first start, Synapse makes its signing key, `/var/lib/matrix-synapse/sign
 
 ## Requirements
 
-Requires Conn3x v0.6.5 or later and systemd on each host, which needs to reach its package mirror and `ghcr.io`. `conn3x init` fetches circuit-podman from GitHub.
+Requires Conn3x v0.6.9 or later and systemd on each host, which needs to reach its package mirror and `ghcr.io`. `conn3x init` fetches circuit-podman from GitHub.
 
 ## Tested on
 
