@@ -100,6 +100,8 @@ jobs:
       - name: Plan again after the restart
         working-directory: examples/local
         run: conn3x plan -detailed-exitcode
+      - name: Check the unit pulls the image by digest
+        run: sudo podman exec circuit-matrix sh -c 'grep -q "^Image=.*@sha256:" /etc/containers/systemd/*.container'
       - name: Clean up
         if: always()
         working-directory: examples/local

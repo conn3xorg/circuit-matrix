@@ -173,7 +173,7 @@ module "podman" {
 
   containers = {
     matrix-synapse = {
-      image   = "ghcr.io/element-hq/synapse:${var.synapse_version}"
+      image   = "ghcr.io/element-hq/synapse:${var.synapse_version}@${var.image_digest}"
       volumes = ["${local.etc}:/config:ro,Z", "${local.data}:/data:Z"]
       # A directory: Synapse reads every *.yaml file in it.
       environment = { SYNAPSE_CONFIG_PATH = "/config" }

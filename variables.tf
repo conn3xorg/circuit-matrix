@@ -154,3 +154,14 @@ variable "settings" {
     error_message = "settings can't set server_name, public_baseurl, listeners, database, the key and media paths or the secrets. Use the circuit's inputs for those; the secrets are generated on the host."
   }
 }
+
+variable "image_digest" {
+  type        = string
+  default     = "sha256:fa4aa980f279bcf26d4e7ecc2a2c9a701c73f2ebe8841da9bdcf3b2fdf693d75"
+  description = "Digest of the image for synapse_version. Podman pulls by the digest, so change it with the version."
+
+  validation {
+    condition     = can(regex("^sha256:[a-f0-9]{64}$", var.image_digest))
+    error_message = "image_digest must be a digest, such as \"sha256:45ed...\"."
+  }
+}
