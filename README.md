@@ -21,7 +21,7 @@ variable "admin_password" {
 }
 
 module "matrix" {
-  source = "github.com/conn3xorg/circuit-matrix?ref=v0.1.0"
+  source = "github.com/conn3xorg/circuit-matrix?ref=v0.1.1"
 
   hosts                = { chat = "203.0.113.10" }
   ssh_private_key_file = "~/.ssh/id_ed25519"
@@ -138,7 +138,7 @@ Make tokens with the [admin API](https://element-hq.github.io/synapse/latest/usa
 
 Element publishes Synapse two ways: Debian and Ubuntu packages from `packages.matrix.org`, and the `element-hq/synapse` image. There's nothing official for Rocky Linux or RHEL, and Fedora's `matrix-synapse` is a downstream package that Fedora maintains. The packages are also amd64 only. The image covers all four distributions, amd64 and arm64, with the same Synapse build, so this circuit uses it everywhere:
 
-- **One pin.** `synapse_version` is an image tag. Change it and `conn3x plan` shows the new tag in the unit file; the apply restarts Synapse on it, and Synapse migrates its database on start.
+- **One pin.** `synapse_version` is an image tag, and `image_digest` pins it. Change both and `conn3x plan` shows the new tag in the unit file; the apply restarts Synapse on it, and Synapse migrates its database on start.
 - **The same layout on every host.** The config lives in `/etc/matrix-synapse` and the data in `/var/lib/matrix-synapse` whichever distribution is underneath.
 
 The container uses the host's network, so `listen_address` is one of the host's own and a proxy on the host reaches it at `localhost:8008`.
@@ -182,6 +182,7 @@ On its first start, Synapse makes its signing key, `/var/lib/matrix-synapse/sign
 | `server_name` | string | Required | The domain in every user ID, such as `"example.com"` for `@alice:example.com`. **It can never change** once Synapse has started. |
 | `public_baseurl` | string | Required | URL clients reach Synapse at through your proxy, such as `"https://matrix.example.com/"`. |
 | `synapse_version` | string | `"v1.164.1"` | Tag of `ghcr.io/element-hq/synapse`. |
+| `image_digest` | string | The digest of `v1.164.1` | Digest of the image. Podman pulls by the digest, so set it whenever you change `synapse_version`. |
 | `listen_address` | string | `"127.0.0.1"` | Address Synapse listens on. |
 | `listen_port` | number | `8008` | Port of the client and federation APIs, in plain HTTP. |
 | `postgres` | object | `null` | PostgreSQL to use, with optional `host` (`"127.0.0.1"`), `port` (`5432`), `database` (`"synapse"`) and `username` (`"synapse"`). The database must exist with C collation. When null, SQLite. |
