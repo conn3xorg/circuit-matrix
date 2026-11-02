@@ -1,5 +1,7 @@
 # circuit-matrix
 
+[![Conn3x grade](https://conn3x.org/circuits/matrix/grade.svg)](https://conn3x.org/circuits/matrix/grade)
+
 A Conn3x circuit that runs [Synapse](https://github.com/element-hq/synapse), the reference Matrix homeserver, so you and your people can chat from Element or any other Matrix client on a server you own, and still talk to everyone else on Matrix through federation.
 
 Synapse runs from Element's official image under Podman as a systemd service, listening on `127.0.0.1:8008` for a reverse proxy in front. You give it a server name, the URL clients reach it at and, if you want one, an admin user. The secrets Synapse signs things with are made on the host and never leave it. SQLite is fine for a trial; for anything you'll keep, point it at PostgreSQL, such as one from [circuit-postgres](https://github.com/conn3xorg/circuit-postgres).
