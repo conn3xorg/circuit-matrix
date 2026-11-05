@@ -62,7 +62,7 @@ With [circuit-caddy](https://github.com/conn3xorg/circuit-caddy) on the same hos
 
 ```hcl
 module "caddy" {
-  source = "github.com/conn3xorg/circuit-caddy?ref=v0.2.1"
+  source = "github.com/conn3xorg/circuit-caddy?ref=v0.3.0"
 
   hosts                = { chat = "203.0.113.10" }
   ssh_private_key_file = "~/.ssh/id_ed25519"
@@ -92,7 +92,7 @@ The password goes to the container's env file, mode `0600`, as `PGPASSWORD`, and
 
 ```hcl
 module "postgres" {
-  source = "github.com/conn3xorg/circuit-postgres?ref=v0.2.0"
+  source = "github.com/conn3xorg/circuit-postgres?ref=v0.3.0"
 
   hosts                = { chat = "203.0.113.10" }
   ssh_private_key_file = "~/.ssh/id_ed25519"
